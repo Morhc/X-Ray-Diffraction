@@ -162,6 +162,7 @@ for expt in expts:
     cubeplot = os.path.join(folder, f'{expt.replace(" ","")}_IdentifyPlane.png')
     latticeplot = os.path.join(folder, f'{expt.replace(" ", "")}_Lattice.png')
     latticetable = os.path.join(folder, f'{expt.replace(" ", "")}_Lattice')
+    spacingplot = os.path.join(folder, f'{expt.replace(" ", "")}_Spacing.png')
     intensitytable = os.path.join(folder, f'{expt.replace(" ", "")}_Intensity')
 
     raw = pd.read_csv(dataset, comment='#', header=None, sep=' ')
@@ -234,9 +235,45 @@ for expt in expts:
 
     aa, ab, aw, ddd = identify_plane(th, popt[0], cubeplot, latticeplot, latticetable)
 
+    sin2theta = np.sin(th)**2
+
+    la, lb, lw = 0.154051, 0.154433, 0.154178
+    da, db, dw = 10*la/(2*np.sin(th)), 10*lb/(2*np.sin(th)), 10*lw/(2*np.sin(th))
+
+    def line(x,m,b): return m*x + b
+
+    po_a, pc_a = curve_fit(line, sin2theta, da)
+    po_b, pc_b = curve_fit(line, sin2theta, db)
+    po_w, pc_w = curve_fit(line, sin2theta, dw)
+
+    xtest = np.linspace(0,1,100)
+    ya = line(xtest, *po_a)
+    yb = line(xtest, *po_b)
+    yw = line(xtest, *po_w)
+
+    plt.plot(xtest,ya,'black',zorder=1)
+    plt.plot(xtest,yb,'black',zorder=1)
+    plt.plot(xtest,yw,'black',zorder=1)
+
+    plt.scatter(sin2theta, da, edgecolor='black',facecolor='blue',label=r'$\lambda$ = ' + '0.154051nm')
+    plt.scatter(sin2theta, db, edgecolor='black',facecolor='yellow',label=r'$\lambda$ = ' + '0.154433nm')
+    plt.scatter(sin2theta, dw, edgecolor='black',facecolor='green',label=r'$\lambda$ = ' + '0.154178nm')
+
+    plt.ylabel(r'$d$ $(\AA)$', fontsize=12)
+    plt.xlabel(r'$sin^2(\theta)$', fontsize=12)
+    plt.title(r'Spacing $d$ vs $sin^2(\theta)$')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(spacingplot)
+    plt.close('all')
+
+
     relint = np.asarray(peaky)/np.max(peaky)
 
     with open(intensitytable, mode='w', encoding = 'utf-8') as f:
-        f.writelines('#2Theta (deg)\tRelative Intensity I/I1\t a0_a (Ang) \t a0_b (Ang) \t a0_w (Ang) \t hkl\n')
-        for theta2, rel, a0a, a0b, a0w, hkl in zip(peakx, relint, aa, ab, aw, ddd):
-            f.writelines(f'{theta2}\t{rel}\t{a0a}\t{a0b}\t{a0w}\t{hkl}\n')
+        f.writelines(f'#The best d for la was {round(ya[-1],4)}+/-{round(np.sqrt(np.diag(pc_a))[0],4)}\n')
+        f.writelines(f'#The best d for lb was {round(yb[-1],4)}+/-{round(np.sqrt(np.diag(pc_b))[0],4)}\n')
+        f.writelines(f'#The best d for lw was {round(yw[-1],4)}+/-{round(np.sqrt(np.diag(pc_w))[0],4)}\n')
+        f.writelines('#2Theta (deg)\tRelative Intensity I/I1\t d_a (Ang) \t d_b (Ang) \t d_w (Ang) \t hkl\n')
+        for theta2, rel, d0a, d0b, d0w, hkl in zip(peakx, relint, da, db, dw, ddd):
+            f.writelines(f'{theta2}\t{rel}\t{d0a}\t{d0b}\t{d0w}\t{hkl}\n')
