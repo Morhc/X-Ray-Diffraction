@@ -135,7 +135,7 @@ def identify_plane(theta, K, cubeplot, latticeplot, latticetable):
     plt.legend()
     plt.tight_layout()
     plt.savefig(latticeplot)
-
+    plt.close('all')
 
     with open(latticetable, mode='w', encoding = 'utf-8') as f:
         f.writelines(f'#The data was found to be of cubic type {cubic_type}.\n')
@@ -148,7 +148,7 @@ def identify_plane(theta, K, cubeplot, latticeplot, latticetable):
             f.writelines(f'{a0a}\t{a0b}\t{a0w}\t{sin2}\t{s}\t{hkl}\n')
 
 
-
+    return aa, ab, aw, ddd
 
 expts = ['Metal Wire', 'Powder Metal']
 
@@ -162,6 +162,7 @@ for expt in expts:
     cubeplot = os.path.join(folder, f'{expt.replace(" ","")}_IdentifyPlane.png')
     latticeplot = os.path.join(folder, f'{expt.replace(" ", "")}_Lattice.png')
     latticetable = os.path.join(folder, f'{expt.replace(" ", "")}_Lattice')
+    intensitytable = os.path.join(folder, f'{expt.replace(" ", "")}_Intensity')
 
     raw = pd.read_csv(dataset, comment='#', header=None, sep=' ')
     raw = raw.rename(columns={0: 'Two Theta', 1: 'H', 2: 'K', 3: 'Epoch', 4: 'Seconds', 5: 'Monitor', 6:  'Detector'})
@@ -231,10 +232,11 @@ for expt in expts:
     plt.close('all')
 
 
-    identify_plane(th, popt[0], cubeplot, latticeplot, latticetable)
+    aa, ab, aw, ddd = identify_plane(th, popt[0], cubeplot, latticeplot, latticetable)
 
+    relint = np.asarray(peaky)/np.max(peaky)
 
-
-    #page 355
-
-    #from page 310 in Cullity, Table 10-1
+    with open(intensitytable, mode='w', encoding = 'utf-8') as f:
+        f.writelines('#2Theta (deg)\tRelative Intensity I/I1\t a0_a (Ang) \t a0_b (Ang) \t a0_w (Ang) \t hkl\n')
+        for theta2, rel, a0a, a0b, a0w, hkl in zip(peakx, relint, aa, ab, aw, ddd):
+            f.writelines(f'{theta2}\t{rel}\t{a0a}\t{a0b}\t{a0w}\t{hkl}\n')
